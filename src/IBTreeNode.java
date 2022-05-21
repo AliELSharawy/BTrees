@@ -29,7 +29,7 @@ public interface IBTreeNode<K extends Comparable<K>, V> {
     /*
      * @param list of keys to set the keys.
      */
-    public void getKeys(List<K> keys);
+    public void setKeys(List<K> keys);
 
     /*
      * @return the list of values of a given node.
