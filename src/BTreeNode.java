@@ -7,21 +7,10 @@ public class BTreeNode<K extends Comparable<K>, V> implements IBTreeNode<K, V> {
     private List<IBTreeNode<K, V>> children;
     private int numOfKeys;
     private boolean isLeaf;
-    private int level;
 
     public BTreeNode() {
         this.numOfKeys = 0;
         this.isLeaf = true;
-        this.level = 0;
-        this.keys = new ArrayList<>();
-        this.values = new ArrayList<>();
-        this.children = new ArrayList<>();
-    }
-
-    public BTreeNode(int level) {
-        this.numOfKeys = 0;
-        this.isLeaf = true;
-        this.level = level;
         this.keys = new ArrayList<>();
         this.values = new ArrayList<>();
         this.children = new ArrayList<>();
@@ -75,17 +64,5 @@ public class BTreeNode<K extends Comparable<K>, V> implements IBTreeNode<K, V> {
     @Override
     public void setChildren(List<IBTreeNode<K, V>> children) {
         this.children = children;
-    }
-
-    public int getNodeLevel() {
-        return this.level;
-    }
-
-    public void setLevel(int level) {
-        this.level = level;
-    }
-
-    public boolean isParent() {
-        return this.children.get(0) != null;
     }
 }
