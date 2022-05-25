@@ -1,11 +1,13 @@
-import java.util.ArrayList;
+import javax.management.RuntimeErrorException;
 import java.util.List;
 
 public class BTree<K extends Comparable<K>, V> implements IBTree<K, V> {
-    private BTreeNode<K, V> root;
+    private IBTreeNode<K, V> root;
     private final int minimumDegree;
 
     public BTree(int minimumDegree) {
+        if (minimumDegree < 2)
+            throw new RuntimeErrorException(null);
         this.minimumDegree = minimumDegree;
         this.root = new BTreeNode<>();
     }
@@ -22,36 +24,60 @@ public class BTree<K extends Comparable<K>, V> implements IBTree<K, V> {
 
     @Override
     public void insert(K key, V value) {
-        IBTreeNode<K, V> root = this.root;
-        if (root.getNumOfKeys() == minimumDegree - 1) {
+        if (key == null || value == null)
+            throw new RuntimeErrorException(null);
+
+        if (root == null) {
+            root = new BTreeNode<>();
+            root.getKeys().add(key);
+            root.getValues().add(value);
+            root.setNumOfKeys(1);
+        }
+
+        if (root.getNumOfKeys() == (minimumDegree * 2 - 1)) {
+            IBTreeNode<K, V> root = this.root;
             this.root = new BTreeNode<>();
-            this.root.setLeaf(false);
-            this.root.setNumOfKeys(0);
-            List<IBTreeNode<K, V>> children = new ArrayList<>();
-            children.add(root);
-            this.root.setChildren(children);
-            splitChild(this.root, 1);
-            insertNonFull(this.root, key);
-        } else insertNonFull(root, key);
+            this.root.getChildren().add(root);
+            splitChild(this.root, 0);
+        }
+
+        IBTreeNode<K, V> nonFull = insertNonFull(this.root, key);
+        if (nonFull != null) {
+            int index = 0;
+            for (K nonFullKey : nonFull.getKeys())
+                if (key.compareTo(nonFullKey) > 0)
+                    index++;
+            if (index < nonFull.getNumOfKeys() && key.compareTo(nonFull.getKeys().get(index)) == 0)
+                return;     // Key is already present.
+            else {
+                nonFull.getKeys().add(key);
+                nonFull.getValues().add(value);
+                nonFull.setNumOfKeys(nonFull.getNumOfKeys() + 1);
+            }
+        }
     }
 
     @Override
     public V search(K key) {
+        if (key == null)
+            throw new RuntimeErrorException(null);
+
         return search(root, key);
     }
 
-    public V search(IBTreeNode<K, V> ibTreeNode, K key) {
+    private V search(IBTreeNode<K, V> ibTreeNode, K key) {
         int index = 0;
         for (K bTreeKey : ibTreeNode.getKeys()) {
-            if (bTreeKey.compareTo(key) < 0)
-                index++;
-            else break;
+            if (bTreeKey.compareTo(key) > 0) {
+                index = ibTreeNode.getKeys().indexOf(bTreeKey);
+                break;
+            }
         }
-        if (index <= ibTreeNode.getNumOfKeys() && key.compareTo( ibTreeNode.getKeys().get(index))==0)
+        if (index < ibTreeNode.getNumOfKeys() && key == ibTreeNode.getKeys().get(index))
             return ibTreeNode.getValues().get(index);
         else if (ibTreeNode.isLeaf())
             return null;
-        else return search(ibTreeNode.getChildren().get(index), key);
+        else return search(ibTreeNode.getChildren().get(index + 1), key);
     }
     private IBTreeNode search_node(IBTreeNode x, K key) {
         List<K> keys=x.getKeys();
@@ -211,6 +237,22 @@ public class BTree<K extends Comparable<K>, V> implements IBTree<K, V> {
         root.getKeys().remove(index);
         root.getValues().remove(index);
     }
+
+    /**
+     * Pre-order traverse for a Btree.
+     */
+    public void traverse(IBTreeNode<K, V> root) {
+        System.out.println();
+        System.out.println("Node = " + root);
+        System.out.println("Children = " + root.getChildren());
+        System.out.println("Number of Keys = " + root.getNumOfKeys());
+        System.out.println("Keys = " + root.getKeys());
+
+        for (IBTreeNode<K, V> child : root.getChildren()) {
+            traverse(child);
+        }
+    }
+
     /**
      * Function to help with insertion.
      * Given the index of the child, this method splits a node
@@ -220,99 +262,56 @@ public class BTree<K extends Comparable<K>, V> implements IBTree<K, V> {
         IBTreeNode<K, V> leftChild, rightChild;
         leftChild = ibTreeNode.getChildren().get(index);
         rightChild = new BTreeNode<>();
-        rightChild.setLeaf(leftChild.isLeaf());
-        int newNumOfKeys = leftChild.getNumOfKeys() / 2;
-        rightChild.setNumOfKeys(newNumOfKeys);
 
-        // Set the keys of the right child
-        List<K> keys = new ArrayList<>();
-        for (int j = 0; j < newNumOfKeys; j++)
-            keys.add(leftChild.getKeys().get(j + newNumOfKeys));
-        rightChild.setKeys(keys);
+        rightChild.setLeaf(leftChild.isLeaf());
+
+        // Set the keys and values of the right child
+        rightChild.getKeys().addAll(leftChild.getKeys().subList(minimumDegree, (minimumDegree * 2 - 1)));
+        rightChild.getValues().addAll(leftChild.getValues().subList(minimumDegree, (minimumDegree * 2 - 1)));
+        rightChild.setNumOfKeys(rightChild.getKeys().size());
 
         // Set the children of the right child
-        List<IBTreeNode<K, V>> children = new ArrayList<>();
         if (!leftChild.isLeaf()) {
-            for (int i = 0; i <= newNumOfKeys; i++)
-                children.add(leftChild.getChildren().get(i + newNumOfKeys));
-            rightChild.setChildren(children);
+            rightChild.getChildren().addAll(leftChild.getChildren().subList(minimumDegree, minimumDegree * 2));
         }
 
-        // Modify the number of keys of the left child.
-        leftChild.setNumOfKeys(newNumOfKeys);
-
-        // Modify the node children, then keys.
-        List<IBTreeNode<K, V>> ibTreeNodeChildren = ibTreeNode.getChildren();
-        ibTreeNodeChildren.add(index + 1, rightChild);
-        ibTreeNode.setChildren(ibTreeNodeChildren);
-
-        List<K> ibTreeNodeKeys = ibTreeNode.getKeys();
-        ibTreeNodeKeys.add(index, leftChild.getKeys().get(newNumOfKeys - 1));
-        ibTreeNode.setKeys(ibTreeNodeKeys);
-
+        // Modify the node children, then keys and values.
+        ibTreeNode.getChildren().add(index + 1, rightChild);
+        ibTreeNode.getKeys().add(index, leftChild.getKeys().get(minimumDegree - 1));
+        ibTreeNode.getValues().add(index, leftChild.getValues().get(minimumDegree - 1));
         ibTreeNode.setNumOfKeys(ibTreeNode.getNumOfKeys() + 1);
+
+        // Modify the keys, values, and children of the left child.
+        leftChild.getKeys().removeAll(rightChild.getKeys());
+        leftChild.getValues().removeAll(rightChild.getValues());
+        leftChild.setNumOfKeys(leftChild.getKeys().size());
+        leftChild.getChildren().removeAll(rightChild.getChildren());
     }
 
     /**
      * Function to help with insertion.
      */
-    private void insertNonFull(IBTreeNode<K, V> node, K key) {
-        int index = node.getNumOfKeys();
-        if (node.isLeaf()) {
-            List<K> keys = node.getKeys();
-            for (; index >= 1; index--) {
-                if (key.compareTo(keys.get(index)) < 0)
-                    keys.set(index + 1, keys.get(index));
-                else break;
-            }
-            keys.add(index + 1, key);
-            node.setKeys(keys);
-            node.setNumOfKeys(node.getNumOfKeys() + 1);
-        } else {
-            List<K> keys = node.getKeys();
-            for (; index >= 1; index--)
-                if (key.compareTo(keys.get(index)) >= 0)
-                    break;
-            index++;
-            if (node.getChildren().get(index).getNumOfKeys() == minimumDegree - 1) {
+    private IBTreeNode<K, V> insertNonFull(IBTreeNode<K, V> node, K key) {
+        if (node.isLeaf())
+            return node;
+
+        int index = 0;
+        for (K nodeKey : node.getKeys())
+            if (key.compareTo(nodeKey) > 0)
+                index++;
+
+        if (index < node.getNumOfKeys() && key.compareTo(node.getKeys().get(index)) == 0)
+            return null;
+        else {
+            if (node.getChildren().get(index).getNumOfKeys() == (minimumDegree * 2 - 1))
                 splitChild(node, index);
-                if (key.compareTo(keys.get(index)) > 0)
-                    index++;
-            }
-            insertNonFull(node.getChildren().get(index), key);
+
+            if (index < node.getNumOfKeys() && key.compareTo(node.getKeys().get(index)) > 0)
+                index++;
+            else if ((index < node.getNumOfKeys() && key.compareTo(node.getKeys().get(index)) == 0))
+                return null;
+
+            return insertNonFull(node.getChildren().get(index), key);
         }
     }
-
-    /* TODO: Not fully implemented! Only inserts a key to a given node. No handling for recursion yet.
-     * @param insertedKey.
-     * @param insertedValue.
-     * @param bTreeNode.
-     * */
-    private BTreeNode<K, V> insertInNode(K insertedKey, V insertedValue, BTreeNode<K, V> bTreeNode) {
-        int lastKeyIndex = bTreeNode.getKeys().size() - 1;
-        K lastKey = bTreeNode.getKeys().get(lastKeyIndex);
-        List<K> keys = bTreeNode.getKeys();
-        if (lastKey.compareTo(insertedKey) < 0)
-            keys.add(lastKey);
-        else if (lastKey.compareTo(insertedKey) > 0) {
-            for (K key : keys)
-                if (key.compareTo(insertedKey) > 0) {
-                    int keyIndex = keys.indexOf(key);
-                    keys.add(keyIndex, insertedKey);
-                    break;
-                }
-        } else {
-            // Key is already in the Btree.
-            return bTreeNode;
-        }
-        int keysLength = keys.size();
-        if (keysLength > this.minimumDegree) {
-            // TODO: Call promote then split.
-        } else {
-            bTreeNode.setNumOfKeys(keysLength);
-            bTreeNode.setKeys(keys);
-        }
-        return bTreeNode;
-    }
-
 }
