@@ -112,6 +112,6 @@ public class Application {
         for (ISearchResult re : res) {
             System.out.println(re.getId() + "->" + re.getRank());
         }
-        System.out.println("");
+        System.out.println();
     }
 }
