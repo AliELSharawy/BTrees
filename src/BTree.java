@@ -340,13 +340,18 @@ public class BTree<K extends Comparable<K>, V> implements IBTree<K, V> {
     /**
      * Pre-order traverse for a Btree.
      */
-    public void traverse(IBTreeNode<K, V> root) {
+    public void traverse() {
+        traverse(this.root);
+    }
+
+
+    private void traverse(IBTreeNode<K, V> root) {
         System.out.println();
-        System.out.println("Node = " + root);
-        System.out.println("Children = " + root.getChildren());
-        System.out.println("Number of Keys = " + root.getNumOfKeys());
-        System.out.println("Keys = " + root.getKeys());
+        System.out.print(root);
+        System.out.print(" --> " + root.getKeys());
+        System.out.println(", Number of Keys = " + root.getNumOfKeys());
         System.out.println("Values = " + root.getValues());
+        System.out.println("Children = " + root.getChildren());
 
         for (IBTreeNode<K, V> child : root.getChildren()) {
             traverse(child);
